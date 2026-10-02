@@ -1,0 +1,28 @@
+﻿{
+  "name": "pool-safety-monitoring",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "shared",
+    "desktop",
+    "mobile"
+  ],
+  "scripts": {
+    "desktop": "npm run dev -w desktop",
+    "mobile": "npm run start -w mobile",
+    "typecheck": "npm run typecheck -w shared \u0026\u0026 npm run typecheck -w desktop \u0026\u0026 npm run typecheck -w mobile",
+    "test": "npm run test -w shared",
+    "build:desktop": "npm run build -w desktop",
+    "test:e2e": "playwright test --project desktop",
+    "format": "prettier --write desktop/src desktop/electron desktop/tests mobile/src mobile/App.tsx shared/src",
+    "test:e2e:mobile": "playwright test --project mobile-web"
+  },
+  "overrides": {
+    "node-forge": "^1.4.0",
+    "expo-font": "~55.0.8"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "prettier": "^3.8.1"
+  }
+}

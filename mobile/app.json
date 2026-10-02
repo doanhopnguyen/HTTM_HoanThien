@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Pool Safety",
+    "slug": "pool-safety-monitoring",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.poolsafety.mobile",
+      "permissions": [
+        "INTERNET",
+        "VIBRATE"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.poolsafety.mobile",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-video"
+    ],
+    "experiments": {
+      "autolinkingModuleResolution": true
+    },
+    "icon": "./assets/icon.png"
+  }
+}
