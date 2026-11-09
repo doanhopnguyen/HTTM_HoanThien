@@ -1,5 +1,22 @@
 # Kết quả build và kiểm thử
 
+## Đợt hoàn thiện 09/11/2026
+
+Bổ sung ADMIN override, reset mật khẩu, bộ lọc user/camera/audit/nhiều trạng thái incident, chỉ số báo cáo mới, format lỗi framework, panel cảnh báo Desktop đầy đủ action, trang chi tiết camera, tách API layer theo feature, theme dùng chung, thư viện component Mobile, chuông thông báo Mobile và giữ phiên khi mất mạng.
+
+| Kiểm tra | Kết quả |
+| --- | --- |
+| `mvn -B -f backend/pom.xml clean test` (JDK 25) | **31 test** (29 integration + transition + dev seed), 0 failures |
+| `npm test` | **8 test** shared client và quyền action |
+| `npm run typecheck` | Shared, Desktop, Electron và Mobile đạt |
+| `npm run build:desktop` | Đạt |
+| `npm run test:e2e` (Electron, `E2E_BASE_URL=http://localhost:8081`) | **1 luồng** đạt: sửa camera, counter/badge realtime, xử lý incident từ panel Desktop |
+| `npm run test:e2e:mobile` (Expo web preview) | **1 luồng** đạt: STAFF ack/start/resolve qua UI, client ADMIN nhận event qua WebSocket |
+
+Chưa chạy lại: Android native (`scripts/test-mobile.py`, đã cập nhật nhãn Login/Confirm), đóng gói NSIS và APK. Các artifact bên dưới là của đợt 02/10/2026.
+
+## Đợt 02/10/2026
+
 Ngày kiểm tra: **02/10/2026**, Windows, Java 25 cho backend, Android Studio JBR 21 cho Android. Đây là bản phát triển có thể chạy end-to-end với backend thật và PostgreSQL thật.
 
 ## Artifact đã tạo

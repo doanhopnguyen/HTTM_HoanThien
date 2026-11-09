@@ -15,4 +15,5 @@ public final class UserDto {
                          @NotBlank @Size(max=150) String fullName, @NotNull Role role) {}
     public record Update(@Email @Size(max=255) String email, @Size(min=1,max=150) String fullName, Role role) {}
     public record Status(@NotNull UserStatus status) {}
+    public record ResetPassword(@NotBlank @Size(min=10,max=72) String newPassword) {}
 }

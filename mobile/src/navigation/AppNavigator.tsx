@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Pressable, Text, View } from "react-native";
 import {
   NavigationContainer,
@@ -9,21 +8,29 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import type { RootStackParamList } from "./types";
 import { useAuthStore } from "../stores/authStore";
-import { useUiStore } from "../stores/uiStore";
+import { useNotificationStore } from "../stores/notificationStore";
 import { useRealtime } from "../hooks/useRealtime";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { AlertsScreen } from "../screens/alerts/AlertsScreen";
+import { HistoryScreen } from "../screens/alerts/HistoryScreen";
 import { IncidentDetailScreen } from "../screens/alerts/IncidentDetailScreen";
 import { NotificationsScreen } from "../screens/alerts/NotificationsScreen";
 import { CamerasScreen } from "../screens/cameras/CamerasScreen";
 import { CameraDetailScreen } from "../screens/cameras/CameraDetailScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
 import { Loading } from "../components/ui";
-import { theme } from "../theme";
+import { Toast } from "../components/Toast";
+import { theme, radius } from "../theme";
 const Root = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator();
 const ref = createNavigationContainerRef<RootStackParamList>();
+const tabIcons = {
+  Home: "home-outline",
+  Alerts: "warning-outline",
+  Cameras: "videocam-outline",
+  Profile: "person-outline",
+} as const;
 function MainTabs() {
   return (
     <Tabs.Navigator
@@ -34,15 +41,7 @@ function MainTabs() {
         tabBarStyle: { borderTopColor: theme.border },
         tabBarIcon: ({ color, size }) => (
           <Ionicons
-            name={
-              route.name === "Home"
-                ? "home-outline"
-                : route.name === "Alerts"
-                  ? "warning-outline"
-                  : route.name === "Cameras"
-                    ? "videocam-outline"
-                    : "person-outline"
-            }
+            name={tabIcons[route.name as keyof typeof tabIcons]}
             color={color}
             size={size}
           />
@@ -56,22 +55,45 @@ function MainTabs() {
     </Tabs.Navigator>
   );
 }
-function History() {
-  return <AlertsScreen history />;
+/** Header bell with the unread notification badge. */
+function NotificationBell() {
+  const unread = useNotificationStore((s) => s.unread);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Notifications${unread ? `, ${unread} unread` : ""}`}
+      onPress={() => {
+        if (ref.isReady()) ref.navigate("Notifications");
+      }}
+      style={{ padding: 6 }}
+    >
+      <Ionicons name="notifications-outline" size={24} color={theme.text} />
+      {unread > 0 && (
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            minWidth: 18,
+            paddingHorizontal: 4,
+            borderRadius: radius.pill,
+            backgroundColor: theme.critical,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{ color: theme.onPrimary, fontSize: 11, fontWeight: "800" }}
+          >
+            {unread > 99 ? "99+" : unread}
+          </Text>
+        </View>
+      )}
+    </Pressable>
+  );
 }
 export function AppNavigator() {
   const { user, ready } = useAuthStore();
-  const toast = useUiStore((s) => s.toast);
-  const incidentId = useUiStore((s) => s.toastIncidentId);
   useRealtime();
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(
-      () => useUiStore.setState({ toast: null, toastIncidentId: null }),
-      8000,
-    );
-    return () => clearTimeout(timer);
-  }, [toast]);
   if (!ready) return <Loading />;
   return (
     <View style={{ flex: 1 }}>
@@ -91,9 +113,7 @@ export function AppNavigator() {
               component={MainTabs}
               options={{
                 title: "Pool Safety",
-                headerRight: () => (
-                  <Ionicons name="water" size={22} color={theme.primary} />
-                ),
+                headerRight: () => <NotificationBell />,
               }}
             />
             <Root.Screen
@@ -109,38 +129,17 @@ export function AppNavigator() {
             <Root.Screen name="Notifications" component={NotificationsScreen} />
             <Root.Screen
               name="History"
-              component={History}
+              component={HistoryScreen}
               options={{ title: "Incident history" }}
             />
           </Root.Navigator>
         </NavigationContainer>
       )}
-      {toast && (
-        <Pressable
-          style={{
-            position: "absolute",
-            top: 60,
-            left: 16,
-            right: 16,
-            padding: 18,
-            borderRadius: 12,
-            backgroundColor: incidentId ? theme.critical : theme.text,
-            elevation: 6,
-          }}
-          onPress={() => {
-            if (user && incidentId && ref.isReady())
-              ref.navigate("IncidentDetail", { id: incidentId });
-            useUiStore.setState({ toast: null, toastIncidentId: null });
-          }}
-        >
-          <Text
-            accessibilityRole="alert"
-            style={{ color: "white", fontWeight: "700" }}
-          >
-            {toast}
-          </Text>
-        </Pressable>
-      )}
+      <Toast
+        openIncident={(id) => {
+          if (user && ref.isReady()) ref.navigate("IncidentDetail", { id });
+        }}
+      />
     </View>
   );
 }

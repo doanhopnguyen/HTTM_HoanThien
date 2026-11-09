@@ -3,7 +3,9 @@ import { ShieldCheck, Waves } from "lucide-react";
 import { errorMessage } from "@pool-safety/shared";
 import { api, baseUrl } from "../../api/client";
 import { Button, Field, Input } from "../../components/ui";
+import { restoreAuth, useAuthStore } from "../../stores/authStore";
 export function LoginPage() {
+  const offline = useAuthStore((s) => s.offline);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [remember, setRemember] = useState(true);
@@ -48,8 +50,17 @@ export function LoginPage() {
         <div className="brand-icon">
           <Waves />
         </div>
-        <h1>Welcome back</h1>
-        <p>Sign in to the pool control center</p>
+        <h1>Pool Safety Monitoring</h1>
+        <p>Sign in to the control center</p>
+        {offline && (
+          <div className="connection-hint" role="status">
+            The backend is unreachable, so your saved session could not be
+            checked. It has been kept.{" "}
+            <Button variant="ghost" onClick={() => void restoreAuth()}>
+              Retry
+            </Button>
+          </div>
+        )}
         <form onSubmit={submit}>
           <Field label="Username">
             <Input name="username" autoComplete="username" required autoFocus />
@@ -76,7 +87,7 @@ export function LoginPage() {
             </div>
           )}
           <Button type="submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? "Signing in…" : "Login"}
           </Button>
         </form>
         <small className="muted">Backend: {baseUrl}</small>

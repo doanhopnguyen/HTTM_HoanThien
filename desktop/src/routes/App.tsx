@@ -7,6 +7,7 @@ import { MonitorPage } from "../features/monitor/MonitorPage";
 import { IncidentListPage } from "../features/incidents/IncidentListPage";
 import { IncidentDetailPage } from "../features/incidents/IncidentDetailPage";
 import { CamerasPage } from "../features/cameras/CamerasPage";
+import { CameraDetailPage } from "../features/cameras/CameraDetailPage";
 import { UsersPage } from "../features/users/UsersPage";
 import { ReportsPage } from "../features/reports/ReportsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
@@ -24,6 +25,7 @@ export function App() {
           <Route path="incidents" element={<IncidentListPage />} />
           <Route path="incidents/:id" element={<IncidentDetailPage />} />
           <Route path="cameras" element={<CamerasPage />} />
+          <Route path="cameras/:id" element={<CameraDetailPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="settings" element={<SettingsPage />} />

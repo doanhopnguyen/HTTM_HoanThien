@@ -14,7 +14,7 @@ import {
   Button,
   Loading,
   ErrorState,
-  Empty,
+  EmptyState,
   Pagination,
   date,
 } from "../../components/ui";
@@ -24,14 +24,16 @@ export function NotificationsScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const resource = useResource(() => api.notifications.list({ page }), [page]);
   async function select(n: Notification) {
+    // Opening the incident must not depend on the read receipt succeeding.
+    if (n.incidentId)
+      navigation.navigate("IncidentDetail", { id: n.incidentId });
+    if (n.read) return;
     try {
       await api.notifications.read(n.id);
       await useNotificationStore.getState().load();
-      useUiStore.getState().invalidate();
-      if (n.incidentId)
-        navigation.navigate("IncidentDetail", { id: n.incidentId });
+      resource.reload();
     } catch (e) {
-      useUiStore.getState().notify(errorMessage(e));
+      useUiStore.getState().notify(errorMessage(e), "critical");
     }
   }
   return (
@@ -44,20 +46,23 @@ export function NotificationsScreen() {
           try {
             await api.notifications.readAll();
             await useNotificationStore.getState().load();
-            useUiStore.getState().invalidate();
+            resource.reload();
           } catch (e) {
-            useUiStore.getState().notify(errorMessage(e));
+            useUiStore.getState().notify(errorMessage(e), "critical");
           }
         }}
       />
-      {resource.error && <ErrorState message={resource.error} />}
+      {resource.error && (
+        <ErrorState message={resource.error} onRetry={resource.reload} />
+      )}
       {resource.loading && !resource.data && <Loading />}
       {resource.data && (
         <>
           {resource.data.content.map((n) => (
             <Pressable
               key={n.id}
-              style={[styles.card, !n.read && { backgroundColor: "#eff6ff" }]}
+              style={[styles.card, !n.read && styles.unreadCard]}
+              accessibilityRole="button"
               onPress={() => void select(n)}
             >
               <Text style={styles.heading}>{n.title}</Text>
@@ -66,7 +71,7 @@ export function NotificationsScreen() {
             </Pressable>
           ))}
           {!resource.data.content.length && (
-            <Empty message="No notifications" />
+            <EmptyState message="No notifications" />
           )}
           <Pagination
             page={page}

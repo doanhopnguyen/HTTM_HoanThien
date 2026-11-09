@@ -24,7 +24,7 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`input ${props.className || ""}`} />;
 }
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select {...props} className="input" />;
+  return <select {...props} className={`input ${props.className || ""}`} />;
 }
 export function StatusBadge({ status }: { status: string }) {
   return (
@@ -66,13 +66,20 @@ export function EmptyState({
 }) {
   return <div className="state">{message}</div>;
 }
-export function ErrorState({ message }: { message: string }) {
+/** Error with a retry; `onRetry` reloads only the failed resource (defaults to every view). */
+export function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
   return (
     <div className="error" role="alert">
       {message}
       <Button
         variant="ghost"
-        onClick={() => useUiStore.getState().invalidate()}
+        onClick={onRetry ?? (() => useUiStore.getState().invalidate())}
       >
         Retry
       </Button>
@@ -179,12 +186,14 @@ export function ConfirmDialog({
   busy,
   confirm,
   close,
+  confirmLabel = "Confirm",
 }: {
   title: string;
   message: string;
   busy: boolean;
   confirm: () => void;
   close: () => void;
+  confirmLabel?: string;
 }) {
   return (
     <Modal title={title} close={close}>
@@ -194,7 +203,7 @@ export function ConfirmDialog({
           Cancel
         </Button>
         <Button variant="danger" disabled={busy} onClick={confirm}>
-          Confirm
+          {confirmLabel}
         </Button>
       </div>
     </Modal>
@@ -208,8 +217,11 @@ export function Toast() {
     return () => clearTimeout(timer);
   }, [toast]);
   return toast ? (
-    <div className="toast" role="status">
-      {toast}
+    <div
+      className={`toast toast-${toast.tone}`}
+      role={toast.tone === "error" ? "alert" : "status"}
+    >
+      {toast.message}
       <button
         aria-label="Dismiss"
         onClick={() => useUiStore.setState({ toast: null })}
@@ -235,6 +247,4 @@ export function Field({
     </label>
   );
 }
-export function date(value: string | null) {
-  return value ? new Date(value).toLocaleString() : "—";
-}
+export { date, confidence, duration } from "../utils/format";

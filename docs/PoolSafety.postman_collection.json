@@ -35,6 +35,10 @@
     {
       "key": "incidentId",
       "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
     }
   ],
   "item": [
@@ -232,6 +236,23 @@
       }
     },
     {
+      "name": "Active incidents (several statuses)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/incidents?status=NEW&status=ACKNOWLEDGED&status=IN_PROGRESS&page=0&size=20"
+      }
+    },
+    {
       "name": "Acknowledge",
       "request": {
         "method": "PATCH",
@@ -283,6 +304,27 @@
         "body": {
           "mode": "raw",
           "raw": "{\n  \"note\": \"Swimmer rescued safely\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Admin override: resolve or false alarm an incident handled by someone else (ADMIN token)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/incidents/{{incidentId}}/resolve",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"note\": \"Closed from the control room\"\n}"
         }
       }
     },
@@ -424,6 +466,106 @@
           }
         ],
         "url": "{{baseUrl}}/api/users/staff"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const u=pm.response.json().content[0]; if(u){pm.collectionVariables.set(\"userId\",u.id);}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search users",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users?role=STAFF&status=ACTIVE&search=staff"
+      }
+    },
+    {
+      "name": "Reset password (ADMIN)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/{{userId}}/password",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"newPassword\": \"Replace-With-New-Password-123\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Online cameras",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/cameras/online"
+      }
+    },
+    {
+      "name": "Camera statistics",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/dashboard/camera-statistics?days=30"
+      }
+    },
+    {
+      "name": "Audit logs",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/audit-logs?action=ADMIN_OVERRIDE&page=0&size=20"
       }
     },
     {

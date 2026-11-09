@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import type { IncidentStatus } from "@pool-safety/shared";
 import { api } from "../../api/client";
+import { IncidentActions } from "./IncidentActions";
 import { useResource } from "../../hooks/useResource";
 import {
   PageHeader,
@@ -14,6 +16,7 @@ import {
   ErrorState,
   EmptyState,
   date,
+  confidence,
 } from "../../components/ui";
 export function IncidentListPage() {
   const [page, setPage] = useState(0);
@@ -25,7 +28,7 @@ export function IncidentListPage() {
   const [to, setTo] = useState("");
   const filters = {
     page,
-    status: status || undefined,
+    status: (status || undefined) as IncidentStatus | undefined,
     cameraId: cameraId || undefined,
     handledBy: handledBy || undefined,
     search: search || undefined,
@@ -37,7 +40,10 @@ export function IncidentListPage() {
     [page, status, cameraId, handledBy, search, from, to],
   );
   const options = useResource(() =>
-    Promise.all([api.cameras.list({ size: 100 }), api.users.staff()]),
+    Promise.all([
+      api.cameras.list({ size: 100 }),
+      api.users.list({ size: 100 }),
+    ]),
   );
   const change =
     (setter: (value: string) => void) =>
@@ -87,7 +93,7 @@ export function IncidentListPage() {
           value={handledBy}
           onChange={change(setHandledBy)}
         >
-          <option value="">All lifeguards</option>
+          <option value="">All handlers</option>
           {options.data?.[1].content.map((u) => (
             <option value={u.id} key={u.id}>
               {u.fullName}
@@ -107,7 +113,15 @@ export function IncidentListPage() {
           onChange={change(setTo)}
         />
       </FilterBar>
-      {resource.error && <ErrorState message={resource.error} />}
+      {options.error && (
+        <ErrorState
+          message={`Filter options unavailable: ${options.error}`}
+          onRetry={options.reload}
+        />
+      )}
+      {resource.error && (
+        <ErrorState message={resource.error} onRetry={resource.reload} />
+      )}
       {resource.loading && !resource.data && <LoadingSpinner />}
       {resource.data && (
         <section className="panel">
@@ -120,26 +134,25 @@ export function IncidentListPage() {
               "Status",
               "Handled by",
               "Resolved",
-              "",
+              "Actions",
             ]}
           >
             {resource.data.content.map((i) => (
               <tr key={i.id}>
                 <td>{date(i.detectionEvent.detectedAt)}</td>
                 <td>{i.camera.name}</td>
-                <td>{i.detectionEvent.eventType}</td>
-                <td>
-                  {i.detectionEvent.confidence === null
-                    ? "—"
-                    : `${Math.round(i.detectionEvent.confidence * 100)}%`}
-                </td>
+                <td>{i.detectionEvent.eventType.replaceAll("_", " ")}</td>
+                <td>{confidence(i.detectionEvent.confidence)}</td>
                 <td>
                   <StatusBadge status={i.status} />
                 </td>
                 <td>{i.handledBy?.fullName || "—"}</td>
                 <td>{date(i.resolvedAt)}</td>
                 <td>
-                  <Link to={`/incidents/${i.id}`}>View</Link>
+                  <div className="actions">
+                    <Link to={`/incidents/${i.id}`}>View</Link>
+                    <IncidentActions incident={i} compact />
+                  </div>
                 </td>
               </tr>
             ))}

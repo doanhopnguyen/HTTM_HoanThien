@@ -8,7 +8,15 @@ import { errorMessage } from "@pool-safety/shared";
 import { useAuthStore } from "../../stores/authStore";
 import { useUiStore } from "../../stores/uiStore";
 import { useNotificationStore } from "../../stores/notificationStore";
-import { Screen, styles, Button, Input, Field } from "../../components/ui";
+import {
+  Screen,
+  styles,
+  Button,
+  Input,
+  Field,
+  DetailRow,
+} from "../../components/ui";
+import { theme } from "../../theme";
 export function ProfileScreen() {
   const user = useAuthStore((s) => s.user)!;
   const unread = useNotificationStore((s) => s.unread);
@@ -24,7 +32,9 @@ export function ProfileScreen() {
     setError("");
     try {
       await api.auth.changePassword(current, password);
-      useUiStore.getState().notify("Password changed. Please sign in again.");
+      useUiStore
+        .getState()
+        .notify("Password changed. Please sign in again.", "success");
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -37,9 +47,9 @@ export function ProfileScreen() {
       <Text style={styles.subtitle}>Your account and activity</Text>
       <View style={styles.card}>
         <Text style={styles.heading}>{user.fullName}</Text>
-        <Text style={styles.text}>{user.username}</Text>
-        <Text style={styles.text}>{user.email}</Text>
-        <Text style={styles.muted}>{user.role}</Text>
+        <DetailRow label="Username" value={user.username} />
+        <DetailRow label="Email" value={user.email} />
+        <DetailRow label="Role" value={user.role} />
       </View>
       <Button
         label={`Notifications${unread ? ` (${unread} unread)` : ""}`}
@@ -72,7 +82,11 @@ export function ProfileScreen() {
           <Text style={styles.muted}>
             Changing your password signs out all sessions.
           </Text>
-          {error && <Text style={{ color: "#dc2626" }}>{error}</Text>}
+          {error && (
+            <Text accessibilityRole="alert" style={{ color: theme.critical }}>
+              {error}
+            </Text>
+          )}
           <Button
             label="Save password"
             disabled={busy || !current || password.length < 10}
@@ -87,7 +101,9 @@ export function ProfileScreen() {
         onPress={() =>
           void api.auth
             .logout()
-            .catch((e) => useUiStore.getState().notify(errorMessage(e)))
+            .catch((e) =>
+              useUiStore.getState().notify(errorMessage(e), "critical"),
+            )
         }
       />
     </Screen>
