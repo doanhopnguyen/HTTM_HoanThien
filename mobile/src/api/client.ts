@@ -1,10 +1,18 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { createClient } from "@pool-safety/shared";
-export const baseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL || "http://10.0.2.2:8080";
+/**
+ * Backend origin from EXPO_PUBLIC_API_BASE_URL (embedded at build time). There is no silent
+ * fallback: a phone must use the LAN IP or HTTPS host of the backend, never a guessed address.
+ */
+export const baseUrl = (process.env.EXPO_PUBLIC_API_BASE_URL || "").replace(
+  /\/$/,
+  "",
+);
+/** Absolute HTTP(S) URL; a path prefix is allowed for backends behind a reverse proxy. */
+export const configured = /^https?:\/\/[^/\s?#]+(\/[^\s?#]*)?$/i.test(baseUrl);
 export const api = createClient({
-  baseUrl: () => baseUrl.replace(/\/$/, ""),
+  baseUrl: () => baseUrl,
   storage: {
     // Browser preview is ephemeral; Android/iOS always use platform secure storage.
     load: () =>

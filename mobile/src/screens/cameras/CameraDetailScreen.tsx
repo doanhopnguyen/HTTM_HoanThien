@@ -9,8 +9,11 @@ import {
   Loading,
   ErrorState,
   StatusBadge,
+  DetailRow,
+  date,
 } from "../../components/ui";
 import { VideoStream } from "../../components/VideoStream";
+/** Camera info, stream and monitoring state. Read-only for STAFF. */
 export function CameraDetailScreen({
   route,
 }: NativeStackScreenProps<RootStackParamList, "CameraDetail">) {
@@ -18,32 +21,38 @@ export function CameraDetailScreen({
     () => api.cameras.get(route.params.id),
     [route.params.id],
   );
+  const camera = resource.data;
   return (
     <Screen>
-      {resource.error && <ErrorState message={resource.error} />}
-      {resource.loading && !resource.data && <Loading />}
-      {resource.data && (
+      {resource.error && (
+        <ErrorState message={resource.error} onRetry={resource.reload} />
+      )}
+      {resource.loading && !camera && <Loading />}
+      {camera && (
         <>
-          <Text style={styles.title}>{resource.data.name}</Text>
-          <Text style={styles.subtitle}>
-            {resource.data.locationDescription}
-          </Text>
-          <StatusBadge status={resource.data.status} />
+          <Text style={styles.title}>{camera.name}</Text>
+          <Text style={styles.subtitle}>{camera.locationDescription}</Text>
+          <StatusBadge status={camera.status} />
           <View style={{ marginTop: 24 }}>
             <VideoStream
-              url={
-                resource.data.status === "ONLINE"
-                  ? resource.data.streamUrl
-                  : null
-              }
+              url={camera.status === "ONLINE" ? camera.streamUrl : null}
             />
           </View>
           <View style={styles.card}>
-            <Text style={styles.text}>{resource.data.code}</Text>
-            <Text style={styles.text}>
-              Monitoring:{" "}
-              {resource.data.monitoringEnabled ? "Enabled" : "Paused"}
-            </Text>
+            <DetailRow label="Code" value={camera.code} />
+            <DetailRow
+              label="Status"
+              value={<StatusBadge status={camera.status} />}
+            />
+            <DetailRow
+              label="Monitoring"
+              value={camera.monitoringEnabled ? "Enabled" : "Paused"}
+            />
+            <DetailRow
+              label="Source"
+              value={camera.streamUrlMasked || "Not configured"}
+            />
+            <DetailRow label="Updated" value={date(camera.updatedAt)} />
           </View>
         </>
       )}

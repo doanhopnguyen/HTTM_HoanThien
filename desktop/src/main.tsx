@@ -3,8 +3,10 @@ import ReactDOM from "react-dom/client";
 import { App } from "./routes/App";
 import { initializeConfig } from "./api/client";
 import { restoreAuth } from "./stores/authStore";
+import { applyTheme } from "./theme";
 import "./styles.css";
 async function boot() {
+  applyTheme();
   try {
     await initializeConfig();
     await restoreAuth();

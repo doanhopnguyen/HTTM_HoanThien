@@ -10,6 +10,7 @@ Optional<User> findByUsername(String username);
 Optional<UUID> findIdByUsername(@Param("username") String username);
 List<User> findByStatus(UserStatus status);
 Page<User> findByRole(Role role, Pageable page);
+Page<User> findByRoleAndStatus(Role role, UserStatus status, Pageable page);
 @Lock(LockModeType.PESSIMISTIC_WRITE)
 @Query("select u from User u where u.id = :id")
 Optional<User> lockById(@Param("id") UUID id);

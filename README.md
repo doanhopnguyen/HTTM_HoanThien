@@ -100,7 +100,9 @@ cd desktop
 npm run dev
 ```
 
-Lệnh mở cửa sổ Electron thật cùng Vite. ADMIN đăng nhập; STAFF dùng Mobile. Có Dashboard, Live Monitor, danh sách/detail sự cố, camera/user management, Reports, thông báo và Settings/audit history.
+Lệnh mở cửa sổ Electron thật cùng Vite. ADMIN đăng nhập; STAFF dùng Mobile (phiên STAFF đã lưu bị thu hồi khi mở Desktop). Có Dashboard, Live Monitor (click camera mở trang chi tiết, nút fullscreen), danh sách/detail sự cố với action ngay trên bảng, camera/user management (lọc, reset mật khẩu, xác nhận trước khi disable), Reports (thời gian phản hồi/xử lý), thông báo và Settings/audit history có lọc.
+
+Panel cảnh báo nổi hiển thị thời điểm phát hiện, confidence, trạng thái và các nút Acknowledge / Start handling / Resolve / False alarm theo state machine, cùng View camera (nhảy tới camera trên Live Monitor) và View detail. Panel cũng hiện các incident NEW đã có trước khi đăng nhập. Màu giao diện lấy từ `theme` trong `shared/src/types.ts` (sinh CSS variables lúc khởi động), dùng chung với Mobile.
 
 Backend URL lấy từ `desktop/.env` cho preview hoặc biến `API_BASE_URL` khi chạy Electron; cấu hình đã lưu trong màn hình đăng nhập có ưu tiên cao hơn. Có thể thay backend URL ở **Backend connection** trước khi đăng nhập. URL phải là origin HTTP(S), không chứa username/password/query.
 
@@ -125,7 +127,11 @@ npm start
 npm run android
 ```
 
-App có Home, Alerts, Cameras, Profile; incident detail/timeline, snapshot/video, notifications và history. Token lưu trong SecureStore. App foreground nhận realtime, rung và hiển thị thông báo trong app. Khi app background, socket ngắt; quay lại foreground kết nối và đồng bộ. **Chưa có background push/FCM**; `PushNotificationProvider` là ranh giới tích hợp sau này.
+App có Home (một "My active incident"), Alerts, Cameras, Profile; chuông thông báo kèm số chưa đọc ở header; incident detail/timeline (from → to), snapshot/video; lịch sử "Handled by me / Whole team". Acknowledge và Start cần xác nhận; Resolve/False alarm cần ghi chú. Token lưu trong SecureStore. App foreground nhận realtime: incident mới rung và hiện banner đỏ (giữ đến khi chạm/đóng); khi ADMIN override incident của bạn có banner riêng. Khi app background, socket ngắt; quay lại foreground kết nối và đồng bộ. **Chưa có background push/FCM**: mọi cảnh báo đi qua `PushNotificationProvider` (`mobile/src/services/pushNotifications.ts`), hiện dùng `InAppNotificationProvider`; tích hợp FCM/APNs chỉ cần cài provider khác trong `App.tsx`.
+
+`EXPO_PUBLIC_API_BASE_URL` là **bắt buộc**: không còn địa chỉ mặc định ngầm; thiếu biến này app hiện màn hình hướng dẫn cấu hình.
+
+Mất mạng khi mở app **không** xóa phiên đã lưu: chỉ khi server từ chối refresh token thì mới đăng xuất. Màn hình đăng nhập Desktop/Mobile hiện thông báo và nút Retry.
 
 ## Video camera
 
@@ -156,11 +162,30 @@ Backend chỉ nhận AI bằng `X-AI-SERVICE-KEY`; user JWT không thay thế se
 
 Xem [docs/realtime.md](docs/realtime.md). `/ws` nhận frame AUTH đầu tiên chứa access token, không đưa token vào URL. Incident/camera events gửi cho các user đã xác thực; notification chỉ gửi chủ sở hữu. Reconnect có backoff và đồng bộ lại dữ liệu. App cũng reconcile mỗi 30 giây khi hoạt động.
 
-Detection/incident/history/notifications nằm cùng transaction. Broadcast chỉ chạy sau commit. Acknowledge khóa bản ghi PostgreSQL; hai nhân viên cùng nhận thì chỉ một thành công, người còn lại nhận `INCIDENT_ALREADY_ASSIGNED`. Người khác không được chiếm các action tiếp theo, kể cả ADMIN; chưa có chức năng chuyển giao.
+Detection/incident/history/notifications nằm cùng transaction. Broadcast chỉ chạy sau commit. Acknowledge khóa bản ghi PostgreSQL; hai nhân viên cùng nhận thì chỉ một thành công, người còn lại nhận `INCIDENT_ALREADY_ASSIGNED`. STAFF khác không được chiếm incident đang có người xử lý.
+
+**ADMIN override:** ADMIN có thể **resolve** hoặc **đánh false alarm** một incident do người khác đang xử lý (không được acknowledge/start thay). Backend ghi history `ADMIN_OVERRIDE_RESOLVED` / `ADMIN_OVERRIDE_FALSE_ALARM` kèm tên người xử lý trước, audit `ADMIN_OVERRIDE`, đặt `handledBy` thành ADMIN đã đóng incident và gửi notification `INCIDENT_OVERRIDDEN` riêng cho người xử lý đó. Desktop hiển thị nút dạng `Override: Resolve` và yêu cầu ghi chú.
 
 State machine: NEW → ACKNOWLEDGED hoặc FALSE_ALARM; ACKNOWLEDGED → IN_PROGRESS, RESOLVED hoặc FALSE_ALARM; IN_PROGRESS → RESOLVED. Trạng thái kết thúc không mở lại. Quyền STAFF đánh false alarm được kiểm soát bằng `STAFF_FALSE_ALARM` và backend enforcement.
 
-Logout thu hồi toàn bộ session tài khoản; đổi mật khẩu/disable/đổi role cũng vô hiệu hóa token. Các list có pagination, size 1–100. Lỗi thống nhất `{ timestamp, status, code, message, path }`.
+Logout thu hồi toàn bộ session tài khoản; đổi mật khẩu/reset mật khẩu/disable/đổi role cũng vô hiệu hóa token. Các list có pagination, size 1–100. Lỗi thống nhất `{ timestamp, status, code, message, path }` cho cả lỗi framework: URL không tồn tại 404 `NOT_FOUND`, sai method 405, thiếu/sai tham số 400 kèm tên tham số, sai content type 415, tranh chấp khóa 409 `RESOURCE_BUSY`.
+
+### API bổ sung
+
+| API | Mô tả |
+| --- | --- |
+| `PATCH /api/users/{id}/password` `{newPassword}` | ADMIN reset mật khẩu, thu hồi mọi session của user, audit `RESET_PASSWORD` |
+| `GET /api/users?role=&status=&search=` | Lọc user; `/api/users/staff` chỉ trả STAFF đang ACTIVE |
+| `GET /api/cameras?status=&search=` | Lọc camera theo trạng thái, mã/tên/vị trí |
+| `GET /api/incidents?status=NEW&status=ACKNOWLEDGED` | `status` lặp lại để lọc nhiều trạng thái trong một request |
+| `GET /api/incidents/{id}/history?order=asc` | Timeline cũ → mới (mặc định `asc`, `desc` để đảo) |
+| `GET /api/audit-logs?action=&userId=&entityType=&from=&to=` | ADMIN; response có `username`, `userFullName`, `entityType`, `entityId` |
+| `GET /api/dashboard/recent-incidents?size=` | 1–50, mặc định 10 |
+| `GET /api/dashboard/report?days=` | **ADMIN only**; thêm `active`, `averageResponseSeconds` (phát hiện → acknowledge), `averageResolutionSeconds` (phát hiện → đóng) |
+| `GET /api/dashboard/incident-statistics` | Đủ mọi ngày trong khoảng, ngày không có sự cố trả 0 |
+| `GET /api/dashboard/camera-statistics` | Thêm `resolved`, `falseAlarms`, `active` theo camera |
+
+AI service được lệch đồng hồ tối đa 60 giây (`detectedAt` hơi ở tương lai vẫn được nhận).
 
 ## Kiểm thử
 

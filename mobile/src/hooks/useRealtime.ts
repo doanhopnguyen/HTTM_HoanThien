@@ -1,40 +1,58 @@
 import { useEffect } from "react";
-import { AppState, Vibration } from "react-native";
-import { RealtimeClient, type Incident } from "@pool-safety/shared";
+import { AppState } from "react-native";
+import {
+  RealtimeClient,
+  type Incident,
+  type Notification,
+} from "@pool-safety/shared";
 import { api, baseUrl } from "../api/client";
 import { useAuthStore } from "../stores/authStore";
 import { useUiStore } from "../stores/uiStore";
-import { useIncidentStore } from "../stores/incidentStore";
 import { useNotificationStore } from "../stores/notificationStore";
+import { notificationProvider } from "../services/pushNotifications";
+/**
+ * Foreground realtime connection. New incidents and personal alerts (e.g. an administrator
+ * overriding my incident) are delivered through the notification provider; everything else
+ * refreshes the visible screens. Background delivery requires a push provider (see services/).
+ */
 export function useRealtime() {
   const id = useAuthStore((s) => s.user?.id);
   useEffect(() => {
     if (!id) return;
-    const sync = () => {
-      useUiStore.getState().invalidate();
+    const refreshCount = () =>
       void useNotificationStore
         .getState()
         .load()
         .catch(() => undefined);
+    const sync = () => {
+      useUiStore.getState().invalidate();
+      refreshCount();
     };
     const realtime = new RealtimeClient(
       api,
       () => baseUrl,
       (event) => {
-        if (event.type.startsWith("INCIDENT_")) {
+        if (event.type === "INCIDENT_CREATED") {
           const incident = event.data as Incident;
-          useIncidentStore.getState().receive(incident);
-          if (event.type === "INCIDENT_CREATED") {
-            Vibration.vibrate([0, 350, 150, 350]);
-            useUiStore
-              .getState()
-              .notify(
-                `${incident.detectionEvent.eventType} alert · ${incident.camera.name}`,
-                incident.id,
-              );
-          }
+          notificationProvider().present({
+            title: `${incident.detectionEvent.eventType} alert · ${incident.camera.name}`,
+            message: incident.camera.locationDescription ?? undefined,
+            incidentId: incident.id,
+            critical: true,
+          });
         }
-        sync();
+        if (event.type === "NOTIFICATION_CREATED") {
+          const notification = event.data as Notification;
+          if (notification.type === "INCIDENT_OVERRIDDEN")
+            notificationProvider().present({
+              title: notification.title,
+              message: notification.message,
+              incidentId: notification.incidentId ?? undefined,
+              critical: false,
+            });
+        }
+        if (event.type.startsWith("NOTIFICATION")) refreshCount();
+        else sync();
       },
       (connection) => useUiStore.setState({ connection }),
       sync,
@@ -51,9 +69,8 @@ export function useRealtime() {
       realtime.stop();
       clearInterval(timer);
       subscription.remove();
-      useUiStore.setState({ toast: null, toastIncidentId: null });
-      useIncidentStore.setState({ latest: null });
-      useNotificationStore.setState({ unread: 0 });
+      useUiStore.getState().dismiss();
+      useNotificationStore.getState().reset();
     };
   }, [id]);
 }

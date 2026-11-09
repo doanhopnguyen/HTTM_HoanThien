@@ -14,10 +14,12 @@ import java.time.Instant;
 public class NotificationService {
     private final NotificationRepository notifications;private final UserRepository users;private final ApplicationEventPublisher events;
     public void alert(UUID incident,String type,String title,String message) {
-        for(var user:users.findByStatus(UserStatus.ACTIVE)) {
-            var n=new Notification();n.setUserId(user.getId());n.setIncidentId(incident);n.setType(type);n.setTitle(title);n.setMessage(message);notifications.save(n);
-            events.publishEvent(RealtimeEvent.user("NOTIFICATION_CREATED",NotificationDto.of(n),user.getId()));
-        }
+        for(var user:users.findByStatus(UserStatus.ACTIVE)) notifyUser(user.getId(),incident,type,title,message);
+    }
+    /** Personal notification for one recipient, e.g. the handler whose incident an administrator closed. */
+    public void notifyUser(UUID recipient,UUID incident,String type,String title,String message) {
+        var n=new Notification();n.setUserId(recipient);n.setIncidentId(incident);n.setType(type);n.setTitle(title);n.setMessage(message);notifications.save(n);
+        events.publishEvent(RealtimeEvent.user("NOTIFICATION_CREATED",NotificationDto.of(n),recipient));
     }
     @Transactional public NotificationDto read(UUID actor,UUID id) {
         var n=notifications.findByIdAndUserId(id,actor).orElseThrow(()->ApiException.missing("Notification"));

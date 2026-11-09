@@ -1,6 +1,8 @@
 import { Pressable, Text, View } from "react-native";
 import type { Incident } from "@pool-safety/shared";
-import { StatusBadge, styles, date } from "./ui";
+import { StatusBadge } from "./StatusBadge";
+import { styles } from "./styles";
+import { confidence, date } from "../utils/format";
 import { theme } from "../theme";
 export function IncidentCard({
   incident,
@@ -11,13 +13,7 @@ export function IncidentCard({
 }) {
   return (
     <Pressable
-      style={[
-        styles.card,
-        incident.status === "NEW" && {
-          borderColor: "#fecaca",
-          backgroundColor: "#fffafa",
-        },
-      ]}
+      style={[styles.card, incident.status === "NEW" && styles.criticalCard]}
       onPress={onPress}
       accessibilityRole="button"
     >
@@ -37,10 +33,7 @@ export function IncidentCard({
         {date(incident.detectionEvent.detectedAt)}
       </Text>
       <Text style={styles.text}>
-        Confidence:{" "}
-        {incident.detectionEvent.confidence === null
-          ? "—"
-          : `${Math.round(incident.detectionEvent.confidence * 100)}%`}
+        Confidence: {confidence(incident.detectionEvent.confidence)}
       </Text>
       <Text style={styles.muted}>
         {incident.handledBy

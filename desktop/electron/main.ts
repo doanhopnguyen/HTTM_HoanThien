@@ -80,8 +80,17 @@ app.whenReady().then(async () => {
   });
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
+  // Only element fullscreen (camera tiles) is granted, and only to the app's own renderer.
+  const rendererId = window.webContents.id;
+  const ownRenderer = (contents: Electron.WebContents | null) =>
+    contents?.id === rendererId;
   window.webContents.session.setPermissionRequestHandler(
-    (_contents, _permission, callback) => callback(false),
+    (contents, permission, callback) =>
+      callback(permission === "fullscreen" && ownRenderer(contents)),
+  );
+  window.webContents.session.setPermissionCheckHandler(
+    (contents, permission) =>
+      permission === "fullscreen" && ownRenderer(contents),
   );
   if (dev) await window.loadURL("http://127.0.0.1:5173");
   else await window.loadFile(path.join(__dirname, "../dist/index.html"));

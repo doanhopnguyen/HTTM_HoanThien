@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { Plus, Pencil } from "lucide-react";
-import { errorMessage, type Camera } from "@pool-safety/shared";
+import {
+  errorMessage,
+  type Camera,
+  type CameraInput,
+  type CameraStatus,
+} from "@pool-safety/shared";
+import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useResource } from "../../hooks/useResource";
 import { useUiStore } from "../../stores/uiStore";
-import { useCameraStore } from "../../stores/cameraStore";
 import {
   Button,
   PageHeader,
@@ -14,6 +19,7 @@ import {
   Field,
   Input,
   Select,
+  FilterBar,
   ConfirmDialog,
   Pagination,
   LoadingSpinner,
@@ -25,18 +31,25 @@ export function CamerasPage() {
   const [editing, setEditing] = useState<Camera | "new" | null>(null);
   const [deleting, setDeleting] = useState<Camera | null>(null);
   const [busy, setBusy] = useState(false);
-  const resource = useResource(async () => {
-    const data = await api.cameras.list({ page });
-    useCameraStore.getState().set(data.content);
-    return data;
-  }, [page]);
-  async function act(work: () => Promise<unknown>) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState<CameraStatus | "">("");
+  const resource = useResource(
+    () =>
+      api.cameras.list({
+        page,
+        search: search || undefined,
+        status: status || undefined,
+      }),
+    [page, search, status],
+  );
+  async function act(work: () => Promise<unknown>, done: string) {
     setBusy(true);
     try {
       await work();
+      useUiStore.getState().notify(done, "success");
       useUiStore.getState().invalidate();
     } catch (e) {
-      useUiStore.getState().notify(errorMessage(e));
+      useUiStore.getState().notify(errorMessage(e), "error");
     } finally {
       setBusy(false);
     }
@@ -51,7 +64,33 @@ export function CamerasPage() {
           <Plus size={16} /> Add camera
         </Button>
       </PageHeader>
-      {resource.error && <ErrorState message={resource.error} />}
+      <FilterBar>
+        <Input
+          aria-label="Search cameras"
+          placeholder="Search code, name or location…"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
+        />
+        <Select
+          aria-label="Camera status"
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as CameraStatus | "");
+            setPage(0);
+          }}
+        >
+          <option value="">All statuses</option>
+          {["ONLINE", "OFFLINE", "DISABLED"].map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </Select>
+      </FilterBar>
+      {resource.error && (
+        <ErrorState message={resource.error} onRetry={resource.reload} />
+      )}
       {resource.loading && !resource.data && <LoadingSpinner />}
       {resource.data && (
         <section className="panel">
@@ -69,7 +108,9 @@ export function CamerasPage() {
               <tr key={c.id}>
                 <td>{c.code}</td>
                 <td>
-                  <strong>{c.name}</strong>
+                  <Link to={`/cameras/${c.id}`}>
+                    <strong>{c.name}</strong>
+                  </Link>
                   <small>{c.locationDescription}</small>
                 </td>
                 <td>
@@ -80,8 +121,12 @@ export function CamerasPage() {
                     variant="ghost"
                     disabled={busy || c.status === "DISABLED"}
                     onClick={() =>
-                      void act(() =>
-                        api.cameras.monitoring(c.id, !c.monitoringEnabled),
+                      void act(
+                        () =>
+                          api.cameras.monitoring(c.id, !c.monitoringEnabled),
+                        c.monitoringEnabled
+                          ? `Monitoring paused: ${c.name}`
+                          : `Monitoring enabled: ${c.name}`,
                       )
                     }
                   >
@@ -106,11 +151,15 @@ export function CamerasPage() {
                       variant="ghost"
                       disabled={busy}
                       onClick={() =>
-                        void act(() =>
-                          api.cameras.status(
-                            c.id,
-                            c.status === "DISABLED" ? "OFFLINE" : "DISABLED",
-                          ),
+                        void act(
+                          () =>
+                            api.cameras.status(
+                              c.id,
+                              c.status === "DISABLED" ? "OFFLINE" : "DISABLED",
+                            ),
+                          c.status === "DISABLED"
+                            ? `Camera activated (offline): ${c.name}`
+                            : `Camera disabled: ${c.name}`,
                         )
                       }
                     >
@@ -129,7 +178,13 @@ export function CamerasPage() {
             ))}
           </Table>
           {!resource.data.content.length && (
-            <EmptyState message="No cameras configured. Add your first camera." />
+            <EmptyState
+              message={
+                search || status
+                  ? "No cameras match these filters"
+                  : "No cameras configured. Add your first camera."
+              }
+            />
           )}
           <Pagination
             page={page}
@@ -155,7 +210,7 @@ export function CamerasPage() {
             void act(async () => {
               await api.cameras.remove(deleting.id);
               setDeleting(null);
-            })
+            }, `Camera removed or disabled: ${deleting.name}`)
           }
         />
       )}
@@ -171,23 +226,29 @@ function CameraForm({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [clearStream, setClearStream] = useState(false);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setBusy(true);
     setError("");
     const f = new FormData(e.currentTarget);
-    const streamUrl = String(f.get("streamUrl"));
-    const body = {
-      code: f.get("code"),
-      name: f.get("name"),
-      locationDescription: f.get("locationDescription"),
-      status: f.get("status"),
+    const text = (name: string) => String(f.get(name) ?? "");
+    const streamUrl = clearStream ? "" : text("streamUrl");
+    // On edit an empty field keeps the stored source unless "remove" is ticked.
+    const body: CameraInput = {
+      code: text("code"),
+      name: text("name"),
+      locationDescription: text("locationDescription"),
+      status: text("status") as CameraStatus,
       monitoringEnabled: f.get("monitoring") === "on",
-      ...(streamUrl || !camera ? { streamUrl } : {}),
+      ...(streamUrl || !camera || clearStream ? { streamUrl } : {}),
     };
     try {
       if (camera) await api.cameras.update(camera.id, body);
       else await api.cameras.create(body);
+      useUiStore
+        .getState()
+        .notify(camera ? "Camera updated" : "Camera created", "success");
       useUiStore.getState().invalidate();
       close();
     } catch (e) {
@@ -237,8 +298,19 @@ function CameraForm({
                 : "https://gateway.example/camera.m3u8"
             }
             maxLength={2048}
+            disabled={clearStream}
           />
         </Field>
+        {camera?.streamUrlMasked && (
+          <label className="check-inline">
+            <input
+              type="checkbox"
+              checked={clearStream}
+              onChange={(e) => setClearStream(e.target.checked)}
+            />
+            Remove the current source ({camera.streamUrlMasked})
+          </label>
+        )}
         <small className="muted">
           HLS/MP4 streams play in both apps. Send RTSP through a media gateway.
           Embedded credentials are kept on the backend.

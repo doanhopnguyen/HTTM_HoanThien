@@ -18,9 +18,11 @@ export function useRealtime() {
       () => baseUrl,
       (event) => {
         if (event.type.startsWith("INCIDENT_"))
-          useIncidentStore
-            .getState()
-            .receive(event.data as Incident, event.type === "INCIDENT_CREATED");
+          useIncidentStore.getState().receive(event.data as Incident);
+        if (event.type.startsWith("NOTIFICATION")) {
+          void useNotificationStore.getState().load();
+          return;
+        }
         sync();
       },
       (connection) => useUiStore.setState({ connection }),
@@ -32,8 +34,8 @@ export function useRealtime() {
     return () => {
       realtime.stop();
       clearInterval(timer);
-      useIncidentStore.setState({ alert: null, latest: null });
-      useNotificationStore.setState({ items: [], unread: 0 });
+      useIncidentStore.getState().reset();
+      useNotificationStore.getState().reset();
     };
   }, [userId]);
 }

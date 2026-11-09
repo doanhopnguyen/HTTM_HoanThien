@@ -17,11 +17,13 @@ export function DashboardPage() {
     Promise.all([
       api.dashboard.summary(),
       api.cameras.list({ size: 4 }),
-      api.dashboard.recent(),
+      api.dashboard.recent(4),
       api.dashboard.statistics(),
+      api.dashboard.cameras(1),
     ]),
   );
   const data = resource.data;
+  const retry = resource.reload;
   return (
     <>
       <PageHeader
@@ -31,7 +33,9 @@ export function DashboardPage() {
       <div className="connection-hint">
         Stay connected and keep the control center visible while on duty.
       </div>
-      {resource.error && <ErrorState message={resource.error} />}
+      {resource.error && (
+        <ErrorState message={resource.error} onRetry={retry} />
+      )}
       {!data && resource.loading && <LoadingSpinner />}
       {data && (
         <>
@@ -83,7 +87,7 @@ export function DashboardPage() {
             <section className="panel">
               <h2>Recent incidents</h2>
               <div className="incident-stack">
-                {data[2].content.slice(0, 4).map((incident) => (
+                {data[2].content.map((incident) => (
                   <IncidentCard key={incident.id} incident={incident} />
                 ))}
                 {!data[2].content.length && (
@@ -95,12 +99,25 @@ export function DashboardPage() {
               <h2>Incidents · Last 7 days</h2>
               <IncidentChart data={data[3]} />
               <h2>Camera status</h2>
-              {data[1].content.map((c) => (
-                <div className="status-row" key={c.id}>
-                  <span>{c.name}</span>
+              {data[4].map((c) => (
+                <Link
+                  className="status-row"
+                  key={c.cameraId}
+                  to={`/cameras/${c.cameraId}`}
+                >
+                  <span>
+                    {c.name}
+                    {c.active > 0 && (
+                      <small className="critical-text">
+                        {" "}
+                        · {c.active} active
+                      </small>
+                    )}
+                  </span>
                   <StatusBadge status={c.status} />
-                </div>
+                </Link>
               ))}
+              {!data[4].length && <EmptyState message="No cameras" />}
             </section>
           </div>
         </>

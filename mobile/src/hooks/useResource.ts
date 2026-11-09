@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { errorMessage } from "@pool-safety/shared";
 import { useUiStore } from "../stores/uiStore";
+/**
+ * Loads data and reloads it when `deps` change or the app-wide revision is bumped
+ * (realtime events, mutations). `reload` refreshes only this resource.
+ */
 export function useResource<T>(load: () => Promise<T>, deps: unknown[] = []) {
   const revision = useUiStore((s) => s.revision);
+  const [local, setLocal] = useState(0);
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,7 @@ export function useResource<T>(load: () => Promise<T>, deps: unknown[] = []) {
     return () => {
       alive = false;
     };
-  }, [...deps, revision]);
-  return { data, error, loading };
+  }, [...deps, revision, local]);
+  const reload = useCallback(() => setLocal((n) => n + 1), []);
+  return { data, error, loading, reload };
 }

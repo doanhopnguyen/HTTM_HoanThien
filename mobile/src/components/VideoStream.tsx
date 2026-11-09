@@ -2,15 +2,15 @@ import { useState } from "react";
 import { View, Text } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
-import { styles } from "./ui";
+import { styles } from "./styles";
 export function VideoStream({ url }: { url: string | null }) {
   return url ? (
     <Player url={url} />
   ) : (
     <View style={[styles.card, { minHeight: 180, justifyContent: "center" }]}>
       <Text style={styles.muted}>
-        No playable stream configured. Use an HTTP(S) HLS or MP4 source; RTSP
-        needs a streaming gateway.
+        Camera stream unavailable. Ask an administrator to configure a live
+        stream for this camera.
       </Text>
     </View>
   );
@@ -27,7 +27,7 @@ function Player({ url }: { url: string }) {
     <View style={{ marginBottom: 20 }}>
       {status === "error" && (
         <Text accessibilityRole="alert" style={styles.muted}>
-          Video unavailable. Check the camera source.
+          Video unavailable right now. Try again shortly.
         </Text>
       )}
       <VideoView

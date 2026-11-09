@@ -14,13 +14,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class DetectionService {
     private final CameraService cameras;private final DetectionEventRepository detections;private final IncidentRepository incidents;
     private final IncidentService incidentService;private final IncidentMapper mapper;private final NotificationService notifications;private final ApplicationEventPublisher events;
+    /** Tolerated clock difference between the AI service and the backend. */
+    static final java.time.Duration CLOCK_SKEW=java.time.Duration.ofSeconds(60);
     @Transactional public DetectionDto.Created create(DetectionDto.Create r) {
+        if(r.detectedAt().isAfter(java.time.Instant.now().plus(CLOCK_SKEW)))throw new ApiException(400,"VALIDATION_ERROR","detectedAt: must not be in the future");
         var c=cameras.get(r.cameraId());
         if(c.getStatus()==CameraStatus.DISABLED || !c.isMonitoringEnabled())throw new ApiException(409,"CAMERA_NOT_MONITORED","Camera is disabled or monitoring is turned off");
         MediaUrls.validate(r.snapshotUrl(),false);MediaUrls.validate(r.videoUrl(),false);
         var d=new DetectionEvent();d.setCameraId(c.getId());d.setEventType(r.eventType());d.setConfidence(r.confidence());d.setSnapshotUrl(r.snapshotUrl());d.setVideoUrl(r.videoUrl());d.setDetectedAt(r.detectedAt());d.setMetadata(r.metadata());detections.save(d);
         var i=new Incident();i.setDetectionEventId(d.getId());incidents.save(i);incidentService.addHistory(i,"DETECTED",null,null,"Detection received from AI service");
-        var dto=mapper.one(i);notifications.alert(i.getId(),"INCIDENT_CREATED",r.eventType()+" ALERT",c.getName()+" · "+c.getLocationDescription());
+        var dto=mapper.one(i);notifications.alert(i.getId(),"INCIDENT_CREATED",r.eventType()+" ALERT",c.getLocationDescription()==null||c.getLocationDescription().isBlank()?c.getName():c.getName()+" · "+c.getLocationDescription());
         events.publishEvent(RealtimeEvent.all("INCIDENT_CREATED",dto));return new DetectionDto.Created(d.getId(),i.getId(),"NEW");
     }
 }

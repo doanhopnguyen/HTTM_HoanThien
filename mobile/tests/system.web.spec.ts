@@ -15,13 +15,13 @@ test("React Native screens complete staff rescue flow in browser preview", async
   );
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const backend = "http://localhost:8080";
+  const backend = process.env.E2E_BASE_URL || "http://localhost:8080";
   await page.goto("/");
   await page.getByLabel("Username", { exact: true }).fill("staff1");
   await page
     .getByLabel("Password", { exact: true })
     .fill(settings.DEV_PASSWORD);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("button", { name: "Login", exact: true }).click();
   await expect(page.getByText("ACTIVE ALERTS", { exact: true })).toBeVisible();
   await expect(
     page.getByText("ON DUTY · CONNECTED", { exact: true }),
@@ -33,6 +33,20 @@ test("React Native screens complete staff rescue flow in browser preview", async
     })
   ).json();
   const headers = { Authorization: `Bearer ${session.accessToken}` };
+  // A second client (the admin control room) listens on the real WebSocket.
+  const adminEvents: { type: string; data?: { id?: string; status?: string } }[] =
+    [];
+  const socket = new WebSocket(backend.replace(/^http/, "ws") + "/ws");
+  await new Promise<void>((resolve, reject) => {
+    socket.onerror = () => reject(new Error("admin WebSocket failed"));
+    socket.onopen = () =>
+      socket.send(JSON.stringify({ type: "AUTH", token: session.accessToken }));
+    socket.onmessage = (message) => {
+      const event = JSON.parse(String(message.data));
+      if (event.type === "AUTHENTICATED") resolve();
+      else adminEvents.push(event);
+    };
+  });
   const camera = await (
     await request.post(backend + "/api/cameras", {
       headers,
@@ -59,6 +73,7 @@ test("React Native screens complete staff rescue flow in browser preview", async
     .getByText("DROWNING alert · Mobile E2E Deep Pool", { exact: true })
     .click();
   await page.getByRole("button", { name: "Acknowledge", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(
     page
       .getByText("ACKNOWLEDGED", { exact: true })
@@ -68,6 +83,7 @@ test("React Native screens complete staff rescue flow in browser preview", async
   await page
     .getByRole("button", { name: "Start handling", exact: true })
     .click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
   await expect(
     page
       .getByText("IN PROGRESS", { exact: true })
@@ -88,7 +104,12 @@ test("React Native screens complete staff rescue flow in browser preview", async
   await expect(
     page.getByLabel("Resolution note", { exact: true }),
   ).toBeHidden();
-  for (const action of ["DETECTED", "ACKNOWLEDGED", "STARTED", "RESOLVED"]) {
+  for (const action of [
+    "Detection received",
+    "Acknowledged",
+    "Started handling",
+    "Resolved",
+  ]) {
     await expect(
       page.getByText(action, { exact: true }).filter({ visible: true }).first(),
     ).toBeVisible();
@@ -100,6 +121,18 @@ test("React Native screens complete staff rescue flow in browser preview", async
   ).json();
   expect(incident.status).toBe("RESOLVED");
   expect(incident.handledBy.username).toBe("staff1");
+  // Other clients are updated in realtime, not only on reload.
+  await expect
+    .poll(() =>
+      adminEvents.some(
+        (e) =>
+          e.type === "INCIDENT_RESOLVED" && e.data?.id === created.incidentId,
+      ),
+    )
+    .toBe(true);
+  for (const type of ["INCIDENT_ACKNOWLEDGED", "INCIDENT_STARTED"])
+    expect(adminEvents.some((e) => e.type === type)).toBe(true);
+  socket.close();
   expect(
     (
       await (
@@ -112,7 +145,7 @@ test("React Native screens complete staff rescue flow in browser preview", async
   ).toBe(4);
   await page.screenshot({ path: ".runtime/mobile-preview-incident.png" });
   await page
-    .getByText("STARTED", { exact: true })
+    .getByText("Started handling", { exact: true })
     .filter({ visible: true })
     .scrollIntoViewIfNeeded();
   await page.screenshot({ path: ".runtime/mobile-preview-timeline.png" });

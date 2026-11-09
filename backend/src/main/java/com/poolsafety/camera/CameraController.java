@@ -13,7 +13,7 @@ import java.util.UUID;
 @RestController @RequestMapping("/api/cameras") @RequiredArgsConstructor
 public class CameraController {
     private final CameraRepository cameras;private final CameraService service;private final CurrentUser current;
-    @GetMapping Page<CameraDto.Response> list(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size){return cameras.findAll(Pages.of(page,size)).map(CameraDto.Response::of);}
+    @GetMapping Page<CameraDto.Response> list(@RequestParam(required=false) CameraStatus status,@RequestParam(required=false) String search,@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size){return service.list(status,search,page,size);}
     @GetMapping("/online") Page<CameraDto.Response> online(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="20") int size){return cameras.findByStatus(CameraStatus.ONLINE,Pages.of(page,size)).map(CameraDto.Response::of);}
     @GetMapping("/{id}") CameraDto.Response get(@PathVariable UUID id){return CameraDto.Response.of(service.get(id));}
     @PostMapping @PreAuthorize("hasRole('ADMIN')") @ResponseStatus(HttpStatus.CREATED) CameraDto.Response create(@Valid @RequestBody CameraDto.Create r){return service.create(current.get(),r);}

@@ -12,7 +12,7 @@ def item(name, method, path, body=None, ai=False, tests=None):
     return result
 
 collection = {'info': {'name':'Pool Safety Monitoring','schema':'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'},
- 'variable': [{'key':k,'value':v} for k,v in {'baseUrl':'http://localhost:8080','username':'admin','password':'','aiServiceKey':'','accessToken':'','refreshToken':'','cameraId':'','incidentId':''}.items()], 'item':[
+ 'variable': [{'key':k,'value':v} for k,v in {'baseUrl':'http://localhost:8080','username':'admin','password':'','aiServiceKey':'','accessToken':'','refreshToken':'','cameraId':'','incidentId':'','userId':''}.items()], 'item':[
  item('Login','POST','/api/auth/login',{'username':'{{username}}','password':'{{password}}'},tests=['pm.test("Login succeeds", () => pm.response.to.have.status(200));','const s=pm.response.json(); pm.collectionVariables.set("accessToken",s.accessToken); pm.collectionVariables.set("refreshToken",s.refreshToken);']),
  item('Refresh','POST','/api/auth/refresh',{'refreshToken':'{{refreshToken}}'},tests=['const s=pm.response.json(); if(s.accessToken){pm.collectionVariables.set("accessToken",s.accessToken); pm.collectionVariables.set("refreshToken",s.refreshToken);}']),
  item('Me','GET','/api/auth/me'),
@@ -21,9 +21,11 @@ collection = {'info': {'name':'Pool Safety Monitoring','schema':'https://schema.
  item('Update camera','PATCH','/api/cameras/{{cameraId}}',{'name':'Deep water - North'}),
  item('Create detection event','POST','/api/detection-events',{'cameraId':'{{cameraId}}','eventType':'DROWNING','confidence':0.94,'detectedAt':'{{$isoTimestamp}}','metadata':{'source':'postman'}},ai=True,tests=['pm.test("Detection created", () => pm.response.to.have.status(201)); pm.collectionVariables.set("incidentId",pm.response.json().incidentId);']),
  item('List incidents','GET','/api/incidents?page=0&size=20'),
+ item('Active incidents (several statuses)','GET','/api/incidents?status=NEW&status=ACKNOWLEDGED&status=IN_PROGRESS&page=0&size=20'),
  item('Acknowledge','PATCH','/api/incidents/{{incidentId}}/acknowledge'),
  item('Start handling','PATCH','/api/incidents/{{incidentId}}/start'),
  item('Resolve','PATCH','/api/incidents/{{incidentId}}/resolve',{'note':'Swimmer rescued safely'}),
+ item('Admin override: resolve or false alarm an incident handled by someone else (ADMIN token)','PATCH','/api/incidents/{{incidentId}}/resolve',{'note':'Closed from the control room'}),
  item('False alarm (use a NEW or ACKNOWLEDGED incident)','PATCH','/api/incidents/{{incidentId}}/false-alarm',{'note':'Confirmed normal swimming activity'}),
  item('Incident history','GET','/api/incidents/{{incidentId}}/history?page=0&size=20'),
  item('Notifications','GET','/api/notifications?page=0&size=20'),
@@ -31,6 +33,11 @@ collection = {'info': {'name':'Pool Safety Monitoring','schema':'https://schema.
  item('Read all','PATCH','/api/notifications/read-all'),
  item('Dashboard','GET','/api/dashboard/summary'),
  item('Reports','GET','/api/dashboard/report?days=30'),
- item('Staff list','GET','/api/users/staff'),
+ item('Staff list','GET','/api/users/staff',tests=['const u=pm.response.json().content[0]; if(u){pm.collectionVariables.set("userId",u.id);}']),
+ item('Search users','GET','/api/users?role=STAFF&status=ACTIVE&search=staff'),
+ item('Reset password (ADMIN)','PATCH','/api/users/{{userId}}/password',{'newPassword':'Replace-With-New-Password-123'}),
+ item('Online cameras','GET','/api/cameras/online'),
+ item('Camera statistics','GET','/api/dashboard/camera-statistics?days=30'),
+ item('Audit logs','GET','/api/audit-logs?action=ADMIN_OVERRIDE&page=0&size=20'),
  item('Logout','POST','/api/auth/logout',{'refreshToken':'{{refreshToken}}'})]}
 target=root/'docs/PoolSafety.postman_collection.json';target.parent.mkdir(exist_ok=True);target.write_text(json.dumps(collection,indent=2)+'\n')

@@ -3,12 +3,17 @@ package com.poolsafety.common;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -23,8 +28,28 @@ public class GlobalExceptionHandler {
         var error = ex.getBindingResult().getFieldErrors().getFirst();
         return response(400, "VALIDATION_ERROR", error.getField() + ": " + error.getDefaultMessage(), r);
     }
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class, ConstraintViolationException.class, IllegalArgumentException.class})
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ErrorResponse> typeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest r) {
+        return response(400, "INVALID_REQUEST", "Invalid value for parameter '" + ex.getName() + "'", r);
+    }
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ErrorResponse> missingParameter(MissingServletRequestParameterException ex, HttpServletRequest r) {
+        return response(400, "INVALID_REQUEST", "Missing required parameter '" + ex.getParameterName() + "'", r);
+    }
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ErrorResponse> unreadable(HttpMessageNotReadableException ex, HttpServletRequest r) {
+        return response(400, "INVALID_REQUEST", "Request body is missing or malformed", r);
+    }
+    @ExceptionHandler({ConstraintViolationException.class, IllegalArgumentException.class})
     ResponseEntity<ErrorResponse> badRequest(Exception ex, HttpServletRequest r) { return response(400, "INVALID_REQUEST", "Invalid request parameters", r); }
+    @ExceptionHandler(NoResourceFoundException.class)
+    ResponseEntity<ErrorResponse> notFound(NoResourceFoundException ex, HttpServletRequest r) { return response(404, "NOT_FOUND", "Resource not found", r); }
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    ResponseEntity<ErrorResponse> method(HttpRequestMethodNotSupportedException ex, HttpServletRequest r) { return response(405, "METHOD_NOT_ALLOWED", "Method " + ex.getMethod() + " is not supported", r); }
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    ResponseEntity<ErrorResponse> mediaType(HttpMediaTypeNotSupportedException ex, HttpServletRequest r) { return response(415, "UNSUPPORTED_MEDIA_TYPE", "Content type must be application/json", r); }
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    ResponseEntity<ErrorResponse> busy(Exception ex, HttpServletRequest r) { return response(409, "RESOURCE_BUSY", "Record is being updated by another request, try again", r); }
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ErrorResponse> conflict(Exception ex, HttpServletRequest r) { return response(409, "DUPLICATE_OR_CONFLICT", "Unique value already exists or record is referenced", r); }
     @ExceptionHandler(AccessDeniedException.class)

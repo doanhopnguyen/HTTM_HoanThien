@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
+import { useNavigate } from "react-router-dom";
 import { Video, Maximize2 } from "lucide-react";
 import type { Camera } from "@pool-safety/shared";
 import { StatusBadge, Button } from "./ui";
@@ -58,17 +59,41 @@ export function VideoStream({ url }: { url: string | null }) {
     </div>
   );
 }
-export function CameraCard({ camera }: { camera: Camera }) {
+/** Live camera tile. Click opens the camera detail; the button switches to fullscreen. */
+export function CameraCard({
+  camera,
+  highlighted = false,
+}: {
+  camera: Camera;
+  highlighted?: boolean;
+}) {
   const container = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (highlighted)
+      container.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+  }, [highlighted]);
   return (
-    <article className="camera-card" ref={container}>
-      <div className="camera-title">
+    <article
+      className={`camera-card ${highlighted ? "highlighted" : ""}`}
+      ref={container}
+      data-camera-id={camera.id}
+    >
+      <button
+        type="button"
+        className="camera-title"
+        onClick={() => navigate(`/cameras/${camera.id}`)}
+        aria-label={`Open ${camera.name}`}
+      >
         <div>
           <strong>{camera.name}</strong>
           <small>{camera.locationDescription || camera.code}</small>
         </div>
         <StatusBadge status={camera.status} />
-      </div>
+      </button>
       {camera.status === "ONLINE" ? (
         <VideoStream url={camera.streamUrl} />
       ) : (
@@ -89,7 +114,11 @@ export function CameraCard({ camera }: { camera: Camera }) {
           onClick={() => {
             void container.current
               ?.requestFullscreen()
-              .catch(() => useUiFallback());
+              .catch(() =>
+                useUiStore
+                  .getState()
+                  .notify("Fullscreen is unavailable on this device", "error"),
+              );
           }}
         >
           <Maximize2 size={16} />
@@ -97,7 +126,4 @@ export function CameraCard({ camera }: { camera: Camera }) {
       </footer>
     </article>
   );
-}
-function useUiFallback() {
-  useUiStore.getState().notify("Fullscreen is unavailable on this device");
 }
