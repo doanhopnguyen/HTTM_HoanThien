@@ -1,12 +1,16 @@
 # Pool Safety Monitoring
 
-Hệ thống giám sát an toàn **một hồ bơi**: backend Spring Boot, PostgreSQL, ứng dụng quản trị Windows bằng Electron và ứng dụng cứu hộ React Native. Không triển khai AI/computer vision; AI tương lai gửi detection vào API riêng.
+Hướng dẫn chạy local, reset dữ liệu và tài khoản test: [docs/local-testing.md](docs/local-testing.md).
+
+Chọn video trên máy và mô hình AI riêng cho từng camera (YOLO26n, checkpoint YOLO hoặc INO/ConvLSTM): [docs/camera-ai.md](docs/camera-ai.md).
+
+Hệ thống giám sát an toàn **một hồ bơi**: backend Spring Boot, PostgreSQL, ứng dụng quản trị Windows bằng Electron và ứng dụng cứu hộ React Native. AI worker Python xử lý nguồn video và mô hình riêng của từng camera, gửi detection vào API backend.
 
 Installer Windows và APK Android đã được tạo trong workspace. Xem [báo cáo build và kiểm thử](docs/validation.md) để biết vị trí artifact, các kiểm thử đã đạt và phạm vi kiểm thử Android còn lại.
 
 ```mermaid
 flowchart TD
-  Camera --> AI[AI service tương lai]
+  Camera --> AI[Python AI worker]
   AI -->|X-AI-SERVICE-KEY| Backend[Spring Boot / Java 25]
   Backend --> DB[(PostgreSQL)]
   Backend --> WS[WebSocket xác thực]
@@ -22,8 +26,9 @@ flowchart TD
 | --- | --- |
 | `backend/` | Java 25, Spring Boot 3.5, Maven, Security, JPA, Validation, BCrypt, JWT/Nimbus, Flyway, OpenAPI, WebSocket |
 | `desktop/` | Electron, React, TypeScript, Vite, Router, Zustand, Axios, Lucide, HLS.js, NSIS installer |
-| `mobile/` | React Native, **Expo SDK 55**, React Navigation, Zustand, Axios, SecureStore, Expo Video |
+| `mobile/` | React Native 0.88, **Expo SDK 58**, React Navigation, Zustand, Axios, SecureStore, Expo Video |
 | `shared/` | Types, API client, refresh rotation, realtime reconnect, incident action rules, theme |
+| `ai/` | Worker nhận diện riêng từng camera: YOLO26n, YOLO tùy chỉnh và bộ nạp INO/ConvLSTM tham khảo |
 | `scripts/` | Khởi động backend, tạo env, giả lập AI và tạo Postman collection |
 | `docs/` | Giao thức realtime, kiểm thử và Postman collection |
 
@@ -32,7 +37,7 @@ Mobile chọn Expo để hỗ trợ Android/iOS, secure storage và video native
 ## Yêu cầu
 
 - JDK **25**, Maven 3.9+ cho backend.
-- Node.js 22 LTS hoặc mới hơn tương thích Expo; npm 10+.
+- Node.js 22.13+, 24.3+ hoặc 26+ và npm 10+. Launcher Mobile tự dùng Node 24 local trong `.tools/node24` nếu Node hệ thống không tương thích SDK 58.
 - PostgreSQL 17 hoặc Docker Desktop với Compose.
 - Windows cho installer Desktop. Android Studio/SDK và JDK 17 hoặc 21 cho native Android; JDK Android tách biệt với JDK 25 backend.
 - Android emulator hoặc điện thoại; Expo Go hỗ trợ SDK tương ứng hoặc development build.
@@ -78,7 +83,7 @@ Launcher dùng **PostgreSQL thật**, tải binary qua dependency kiểm thử, 
 
 Backend: `http://localhost:8080`. Health: `/actuator/health`. Swagger: `/swagger-ui`. OpenAPI JSON: `/api-docs`.
 
-Flyway tạo schema; Hibernate luôn `ddl-auto=validate`. Không cần chạy SQL thủ công. Dev profile thêm migration V9 và seeder idempotent: 1 ADMIN, 3 STAFF, 6 camera, 10 detection/incident, lịch sử và thông báo. Camera mẫu không giả lập video.
+Flyway tạo schema; Hibernate luôn `ddl-auto=validate`. Không cần chạy SQL thủ công. Dev profile thêm migration V9 và seeder idempotent. Với `DEV_SAMPLE_DATA=false`, chỉ tạo `admin` và `staff1`, không tạo camera/sự cố mẫu. Với `DEV_SAMPLE_DATA=true`, tạo 1 ADMIN, 3 STAFF, 6 camera, 10 detection/incident, lịch sử và thông báo. Camera mẫu không giả lập video.
 
 ## Đăng nhập phát triển
 
@@ -87,7 +92,7 @@ Chỉ khi dùng `scripts/init-env.ps1` và profile `dev`:
 | Ứng dụng | Username | Password phát triển |
 | --- | --- | --- |
 | Desktop | `admin` | `PoolSafetyDev!2026` |
-| Mobile | `staff1`, `staff2`, `staff3` | `PoolSafetyDev!2026` |
+| Mobile | `staff1` (thêm `staff2`, `staff3` nếu `DEV_SAMPLE_DATA=true`) | `PoolSafetyDev!2026` |
 
 Nếu đổi `DEV_PASSWORD`, password mới chỉ áp dụng khi tạo user chưa tồn tại; không ghi đè mật khẩu user có sẵn. Đây là tài khoản **development only**.
 
@@ -134,6 +139,8 @@ App có Home (một "My active incident"), Alerts, Cameras, Profile; chuông th�
 Mất mạng khi mở app **không** xóa phiên đã lưu: chỉ khi server từ chối refresh token thì mới đăng xuất. Màn hình đăng nhập Desktop/Mobile hiện thông báo và nút Retry.
 
 ## Video camera
+
+Trong **Add/Edit camera**, có thể chọn **Video trên máy tính** và upload MP4/WebM/MOV. Mỗi camera có cấu hình mô hình AI và ngưỡng tin cậy riêng. Xem [hướng dẫn camera và AI](docs/camera-ai.md) để chạy worker và chọn checkpoint.
 
 Nhập URL **HTTP(S) HLS `.m3u8` hoặc MP4** trong camera management để xem video trên cả hai app. HLS cần media gateway/server với CORS phù hợp. Backend lưu RTSP source nhưng không tự chuyển mã RTSP; RTSP/URL có embedded credentials không được trả về renderer. Cấu hình một media gateway ngoài hệ thống cho camera chỉ hỗ trợ RTSP, rồi dùng URL playback HTTP(S) của gateway.
 

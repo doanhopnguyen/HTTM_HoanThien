@@ -47,6 +47,8 @@ public class SecurityConfig {
         http.csrf(c->c.disable()).cors(c->{})
             .sessionManagement(s->s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(a->a.requestMatchers("/api/auth/login","/api/auth/refresh","/api/detection-events","/ws","/swagger-ui/**","/swagger-ui","/api-docs/**","/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.GET,"/api/media/videos/*","/api/ai/worker/cameras").permitAll()
+                .requestMatchers(HttpMethod.POST,"/api/ai/worker/status").permitAll()
                 .requestMatchers("/api/users/**","/api/audit-logs").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST,"/api/cameras/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PATCH,"/api/cameras/**").hasRole("ADMIN")

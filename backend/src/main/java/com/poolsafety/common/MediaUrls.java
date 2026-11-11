@@ -6,6 +6,7 @@ public final class MediaUrls {
     private MediaUrls() {}
     public static void validate(String value,boolean stream) {
         if(value==null || value.isBlank())return;
+        if(stream && value.matches("local-video:[a-f0-9-]{36}\\.(mp4|webm|mov)"))return;
         try {
             var uri=URI.create(value);var scheme=uri.getScheme();
             if(uri.getHost()==null || !("https".equals(scheme)||"http".equals(scheme)||(stream&&"rtsp".equals(scheme))))throw new IllegalArgumentException();
@@ -13,11 +14,13 @@ public final class MediaUrls {
     }
     public static String playable(String value) {
         if(value==null||value.isBlank())return null;
+        if(value.startsWith("local-video:"))return "/api/media/videos/"+value.substring(12);
         var uri=URI.create(value);
         return uri.getUserInfo()!=null || "rtsp".equals(uri.getScheme()) ? null : value;
     }
     public static String masked(String value) {
         if(value==null||value.isBlank())return null;
+        if(value.startsWith("local-video:"))return "Local video · "+value.substring(12);
         var uri=URI.create(value);
         // Do not expose credentials or query-string access tokens in labels.
         return uri.getScheme()+"://"+uri.getHost()+(uri.getPort()>0?":"+uri.getPort():"")+uri.getPath();

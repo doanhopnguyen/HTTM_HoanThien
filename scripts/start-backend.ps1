@@ -6,6 +6,7 @@ if (!(Test-Path -LiteralPath '.env')) { & (Join-Path $PSScriptRoot 'init-env.ps1
 foreach ($line in Get-Content -LiteralPath '.env') {
     if ($line -match '^([A-Z_][A-Z_0-9]*)=(.*)$') { [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process') }
 }
+if (!$env:MEDIA_DIRECTORY) { $env:MEDIA_DIRECTORY = Join-Path $projectRoot '.runtime/media' }
 if ($EmbeddedPostgres) {
     # The embedded developer database always uses localhost:5433 and trust authentication.
     # It is for local development only and is never a production database.

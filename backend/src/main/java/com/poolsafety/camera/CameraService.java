@@ -18,6 +18,7 @@ import jakarta.persistence.criteria.Predicate;
 
 @Service @RequiredArgsConstructor
 public class CameraService {
+    private final com.poolsafety.media.MediaStorage media;
     private final CameraRepository cameras;private final DetectionEventRepository detections;private final AuditService audit;private final ApplicationEventPublisher events;private final NotificationService notifications;
     @Transactional(readOnly=true) public Page<CameraDto.Response> list(CameraStatus status,String search,int page,int size) {
         Specification<Camera> spec=(root,q,b)->{
@@ -32,11 +33,15 @@ public class CameraService {
     public Camera get(UUID id){return cameras.findById(id).orElseThrow(()->ApiException.missing("Camera"));}
     @Transactional public CameraDto.Response create(User actor,CameraDto.Create r) {
         MediaUrls.validate(r.streamUrl(),true);
+        validateVideo(r.streamUrl());
         var c=new Camera();c.setCode(r.code());c.setName(r.name());c.setLocationDescription(r.locationDescription());c.setStreamUrl(r.streamUrl());c.setStatus(r.status());c.setMonitoringEnabled(r.monitoringEnabled()&&r.status()!=CameraStatus.DISABLED);cameras.saveAndFlush(c);
+        configureAi(c,r.aiModel(),r.modelAsset(),r.aiConfidence());
         return changed(actor,c,"CREATE_CAMERA");
     }
     @Transactional public CameraDto.Response update(User actor,UUID id,CameraDto.Update r) {
         var c=get(id);var before=c.getStatus();var monitoredBefore=c.isMonitoringEnabled();MediaUrls.validate(r.streamUrl(),true);
+        validateVideo(r.streamUrl());
+        configureAi(c,r.aiModel(),r.modelAsset(),r.aiConfidence());
         if(r.code()!=null)c.setCode(r.code());if(r.name()!=null)c.setName(r.name());if(r.locationDescription()!=null)c.setLocationDescription(r.locationDescription());if(r.streamUrl()!=null)c.setStreamUrl(r.streamUrl().isBlank()?null:r.streamUrl());
         if(r.status()!=null)c.setStatus(r.status());if(r.monitoringEnabled()!=null)c.setMonitoringEnabled(r.monitoringEnabled());
         if(c.getStatus()==CameraStatus.DISABLED)c.setMonitoringEnabled(false);c.setUpdatedAt(Instant.now());cameras.flush();offlineNotice(c,before);
@@ -54,6 +59,18 @@ public class CameraService {
         var c=get(id);
         if(detections.existsByCameraId(id)){c.setStatus(CameraStatus.DISABLED);stopMonitoring(actor,c);c.setUpdatedAt(Instant.now());changed(actor,c,"DISABLE_CAMERA");}
         else{cameras.delete(c);audit.record(actor.getId(),"DELETE_CAMERA","CAMERA",id,c.getName());events.publishEvent(RealtimeEvent.all("CAMERA_DELETED",java.util.Map.of("id",id)));}
+    }
+    private void validateVideo(String source) {
+        if(source!=null && source.startsWith("local-video:"))media.path("videos",source.substring(12));
+    }
+    private void configureAi(Camera c,AiModel model,String asset,Double confidence) {
+        if(model!=null)c.setAiModel(model);
+        if(asset!=null)c.setModelAsset(asset.isBlank()?null:asset);
+        if(confidence!=null)c.setAiConfidence(confidence);
+        if(c.getAiModel()==AiModel.NONE)c.setModelAsset(null);
+        if(c.getModelAsset()!=null)media.path("models",c.getModelAsset());
+        if((c.getAiModel()==AiModel.ULTRALYTICS || c.getAiModel()==AiModel.REFERENCE) && c.getModelAsset()==null)
+            throw new ApiException(400,"MODEL_REQUIRED","Choose a checkpoint for this AI model");
     }
     private CameraDto.Response changed(User actor,Camera c,String action){audit.record(actor.getId(),action,"CAMERA",c.getId(),c.getName());var response=CameraDto.Response.of(c);events.publishEvent(RealtimeEvent.all("CAMERA_STATUS_CHANGED",response));return response;}
     /** Turns monitoring off as a side effect of disabling, audited like an explicit DISABLE_MONITORING. */

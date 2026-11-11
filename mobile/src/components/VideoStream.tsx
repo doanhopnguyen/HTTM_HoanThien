@@ -3,7 +3,11 @@ import { View, Text } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useEvent } from "expo";
 import { styles } from "./styles";
-export function VideoStream({ url }: { url: string | null }) {
+import { baseUrl } from "../api/client";
+export function VideoStream({ url: source }: { url: string | null }) {
+  const url = source?.startsWith("/api/media/")
+    ? `${baseUrl}${source}`
+    : source;
   return url ? (
     <Player url={url} />
   ) : (
@@ -18,6 +22,7 @@ export function VideoStream({ url }: { url: string | null }) {
 function Player({ url }: { url: string }) {
   const player = useVideoPlayer(url, (p) => {
     p.muted = true;
+    p.loop = true;
     p.play();
   });
   const { status } = useEvent(player, "statusChange", {

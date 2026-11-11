@@ -7,6 +7,11 @@ export function createHttp(http: AxiosInstance) {
     (await http.get<T>(url, { params })).data;
   return {
     get,
+    upload: async <T>(url: string, file: File) => {
+      const body = new FormData();
+      body.append("file", file);
+      return (await http.post<T>(url, body, { timeout: 1800000 })).data;
+    },
     page: <T>(url: string, params?: object) =>
       get<PageResponse<T>>(url, params),
     post: async <T>(url: string, body?: object) =>

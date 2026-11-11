@@ -9,17 +9,18 @@ function New-Secret {
     return [Convert]::ToBase64String($bytes)
 }
 $content = @"
-DB_USER=pool_safety
+DB_USER=postgres
 DB_PASSWORD=$(New-Secret)
 DB_URL=jdbc:postgresql://localhost:5432/pool_safety
 JWT_SECRET=$(New-Secret)
 AI_SERVICE_KEY=$(New-Secret)
 DEV_PASSWORD=PoolSafetyDev!2026
 SPRING_PROFILES_ACTIVE=dev
+DEV_SAMPLE_DATA=false
 ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,file://,null
 STAFF_FALSE_ALARM=true
 POOL_TIMEZONE=Asia/Ho_Chi_Minh
 "@
 [IO.File]::WriteAllText($envPath, $content, (New-Object Text.UTF8Encoding($false)))
 Write-Host 'Created .env with random secrets and a DEVELOPMENT ONLY login password.'
-Write-Host 'Development users: admin, staff1, staff2, staff3. Password: PoolSafetyDev!2026'
+Write-Host 'Development users: admin, staff1. Password: PoolSafetyDev!2026'

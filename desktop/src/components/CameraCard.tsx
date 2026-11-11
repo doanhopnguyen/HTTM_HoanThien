@@ -5,7 +5,11 @@ import { Video, Maximize2 } from "lucide-react";
 import type { Camera } from "@pool-safety/shared";
 import { StatusBadge, Button } from "./ui";
 import { useUiStore } from "../stores/uiStore";
-export function VideoStream({ url }: { url: string | null }) {
+import { baseUrl } from "../api/client";
+export function VideoStream({ url: source }: { url: string | null }) {
+  const url = source?.startsWith("/api/media/")
+    ? `${baseUrl.replace(/\/$/, "")}${source}`
+    : source;
   const ref = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -54,6 +58,7 @@ export function VideoStream({ url }: { url: string | null }) {
         muted
         autoPlay
         playsInline
+        loop
         onError={() => setError(true)}
       />
     </div>

@@ -19,13 +19,14 @@ import java.util.*;
 @Component @Profile("dev")
 public class DevSeed implements ApplicationRunner {
     private final UserRepository users;private final CameraRepository cameras;private final DetectionEventRepository detections;private final IncidentRepository incidents;private final IncidentHistoryRepository history;private final NotificationRepository notifications;private final PasswordEncoder passwords;private final String password;
+    @Value("${app.dev-sample-data:true}") private boolean sampleData;
     public DevSeed(UserRepository users,CameraRepository cameras,DetectionEventRepository detections,IncidentRepository incidents,IncidentHistoryRepository history,NotificationRepository notifications,PasswordEncoder passwords,@Value("${app.dev-password}") String password){this.users=users;this.cameras=cameras;this.detections=detections;this.incidents=incidents;this.history=history;this.notifications=notifications;this.passwords=passwords;this.password=password;}
     @Override @Transactional public void run(ApplicationArguments args) {
         if(password.length()<10)throw new IllegalArgumentException("DEV_PASSWORD requires at least 10 characters");AuthService.checkPassword(password);
         String hash=passwords.encode(password);var staff=new ArrayList<User>();
-        for(int n=0;n<4;n++){String username=n==0?"admin":"staff"+n;var existing=users.findByUsername(username);User u;
+        for(int n=0;n<(sampleData?4:2);n++){String username=n==0?"admin":"staff"+n;var existing=users.findByUsername(username);User u;
             if(existing.isPresent())u=existing.get();else{u=new User();u.setUsername(username);u.setEmail(username+"@poolsafety.local");u.setFullName(n==0?"Pool Administrator":"Lifeguard "+n);u.setRole(n==0?Role.ADMIN:Role.STAFF);u.setPasswordHash(hash);users.save(u);}staff.add(u);}
-        if(cameras.count()>0)return;
+        if(!sampleData || cameras.count()>0)return;
         var cs=new ArrayList<Camera>();String[] locations={"Deep water · North","Shallow water · East","Children area","Pool entrance","West lane","South corner"};
         for(int n=0;n<6;n++){var c=new Camera();c.setCode("CAM-0"+(n+1));c.setName("Camera "+(n+1));c.setLocationDescription(locations[n]);c.setStatus(n==5?CameraStatus.OFFLINE:CameraStatus.ONLINE);c.setMonitoringEnabled(true);cameras.save(c);cs.add(c);}
         for(int n=0;n<10;n++){

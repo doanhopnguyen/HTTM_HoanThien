@@ -22,9 +22,12 @@ services:
       AI_SERVICE_KEY: ${AI_SERVICE_KEY:?Set AI_SERVICE_KEY in .env}
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
       DEV_PASSWORD: ${DEV_PASSWORD:?Set DEV_PASSWORD in .env}
+      DEV_SAMPLE_DATA: ${DEV_SAMPLE_DATA:-true}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,file://,null}
       STAFF_FALSE_ALARM: ${STAFF_FALSE_ALARM:-true}
       POOL_TIMEZONE: ${POOL_TIMEZONE:-Asia/Ho_Chi_Minh}
+      MEDIA_DIRECTORY: /app/media
+    volumes: ["media_data:/app/media"]
     ports: ["8080:8080"]
     depends_on:
       postgres:
@@ -32,3 +35,4 @@ services:
     restart: unless-stopped
 volumes:
   postgres_data:
+  media_data:

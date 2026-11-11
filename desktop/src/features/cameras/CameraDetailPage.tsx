@@ -56,6 +56,12 @@ export function CameraDetailPage() {
               <dd className="truncate">
                 {c.streamUrlMasked || "Not configured"}
               </dd>
+              <dt>AI model</dt>
+              <dd>
+                {c.aiModel || "NONE"} · threshold {c.aiConfidence ?? 0.5}
+              </dd>
+              <dt>Checkpoint</dt>
+              <dd>{c.modelAsset || "Default"}</dd>
               <dt>Created</dt>
               <dd>{date(c.createdAt)}</dd>
               <dt>Updated</dt>

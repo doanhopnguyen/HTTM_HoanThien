@@ -6,6 +6,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$nodeExecutable = & (Join-Path $PSScriptRoot 'mobile-node.ps1')
+$env:PATH = "$(Split-Path -Parent $nodeExecutable);$env:PATH"
 if (!$AndroidJavaHome -or !(Test-Path -LiteralPath (Join-Path $AndroidJavaHome 'bin/java.exe'))) { throw 'Set AndroidJavaHome to JDK 17/21 (separate from Java 25 backend)' }
 $uri = [Uri]$BackendUrl
 if (!$uri.IsAbsoluteUri -or $uri.Scheme -notin @('http','https')) { throw 'BackendUrl must be an absolute HTTP(S) server origin' }
@@ -15,7 +17,7 @@ $env:JAVA_HOME = $AndroidJavaHome
 $env:EXPO_PUBLIC_API_BASE_URL = $BackendUrl.TrimEnd('/')
 $env:ALLOW_CLEARTEXT = if ($AllowCleartext) { 'true' } else { 'false' }
 $ErrorActionPreference = 'Continue'
-& npm.cmd exec -- expo prebuild --platform android --no-install
+& $nodeExecutable (Join-Path $projectRoot 'node_modules/expo/bin/cli') prebuild --platform android --no-install
 $nativeExitCode = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
 if ($nativeExitCode -ne 0) { throw 'Expo prebuild failed' }

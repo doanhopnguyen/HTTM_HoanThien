@@ -4,12 +4,13 @@
   "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo run:android",
+    "start": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/start-mobile.ps1",
+    "android": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/start-mobile.ps1 -Action run:android",
     "ios": "expo run:ios",
+    "prebuild": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/start-mobile.ps1 -Action prebuild",
     "typecheck": "tsc --noEmit",
     "build:apk": "eas build --platform android --profile preview",
-    "export": "expo export --platform android"
+    "export": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/start-mobile.ps1 -Action export --platform android"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -18,22 +19,22 @@
     "@react-navigation/native": "^7.1.28",
     "@react-navigation/native-stack": "^7.14.5",
     "axios": "^1.13.5",
-    "expo": "~55.0.0",
-    "expo-font": "~55.0.8",
-    "expo-secure-store": "~55.0.0",
-    "expo-status-bar": "~55.0.0",
-    "expo-system-ui": "~55.0.22",
-    "expo-video": "~55.0.0",
-    "react": "19.2.0",
-    "react-dom": "^19.2.0",
-    "react-native": "0.83.10",
-    "react-native-safe-area-context": "~5.6.2",
-    "react-native-screens": "~4.23.0",
-    "react-native-web": "^0.21.3",
+    "expo": "~58.0.24",
+    "expo-font": "~58.0.12",
+    "expo-secure-store": "~58.0.3",
+    "expo-status-bar": "~58.0.5",
+    "expo-system-ui": "~58.0.7",
+    "expo-video": "~58.0.14",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1",
+    "react-native-web": "^0.21.4",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@types/react": "~19.2.10",
-    "typescript": "~5.9.3"
+    "@types/react": "~19.3.0",
+    "typescript": "~6.0.3"
   }
 }

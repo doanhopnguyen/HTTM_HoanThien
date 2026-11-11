@@ -3,3 +3,4 @@ spring:
     locations: classpath:db/migration,classpath:db/dev
 app:
   dev-password: ${DEV_PASSWORD}
+  dev-sample-data: ${DEV_SAMPLE_DATA:true}

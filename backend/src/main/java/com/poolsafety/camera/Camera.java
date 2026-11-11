@@ -12,6 +12,9 @@ public class Camera extends BaseEntity {
 @Column(nullable=false) private String name;
 private String locationDescription;
 @Column(length=2048) private String streamUrl;
+@Enumerated(EnumType.STRING) @Column(nullable=false,length=30) private AiModel aiModel = AiModel.NONE;
+@Column(length=100) private String modelAsset;
+@Column(nullable=false) private double aiConfidence = 0.5;
 @Enumerated(EnumType.STRING) @Column(nullable=false) private CameraStatus status = CameraStatus.OFFLINE;
 @Column(nullable=false) private boolean monitoringEnabled;
 @Column(nullable=false) private Instant updatedAt = Instant.now();

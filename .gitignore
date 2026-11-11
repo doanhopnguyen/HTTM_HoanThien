@@ -18,3 +18,6 @@ mobile/ios/
 *.exe
 *.tsbuildinfo
 npm-audit.json
+local-accounts.md
+**/__pycache__/
+*.pyc

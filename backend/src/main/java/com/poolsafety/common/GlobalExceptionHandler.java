@@ -54,6 +54,10 @@ public class GlobalExceptionHandler {
     ResponseEntity<ErrorResponse> conflict(Exception ex, HttpServletRequest r) { return response(409, "DUPLICATE_OR_CONFLICT", "Unique value already exists or record is referenced", r); }
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ErrorResponse> forbidden(Exception ex, HttpServletRequest r) { return response(403, "FORBIDDEN", "Access denied", r); }
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    ResponseEntity<ErrorResponse> uploadTooLarge(Exception ex, HttpServletRequest r) { return response(413,"FILE_TOO_LARGE","File exceeds the upload size limit",r); }
+    @ExceptionHandler(org.springframework.web.multipart.support.MissingServletRequestPartException.class)
+    ResponseEntity<ErrorResponse> missingUpload(Exception ex, HttpServletRequest r) { return response(400,"INVALID_FILE","Choose a file to upload",r); }
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> unexpected(Exception ex, HttpServletRequest r) {
         log.error("Unhandled request failure at {}", r.getRequestURI(), ex);

@@ -1,4 +1,4 @@
-import type { Camera, CameraStatus } from "../types";
+import type { Camera, CameraStatus, AiModel, AiRuntimeStatus } from "../types";
 import type { Http, PageParams } from "./http";
 
 export interface CameraFilter extends PageParams {
@@ -12,9 +12,17 @@ export interface CameraInput {
   streamUrl?: string | null;
   status?: CameraStatus;
   monitoringEnabled?: boolean;
+  aiModel?: AiModel;
+  modelAsset?: string | null;
+  aiConfidence?: number;
 }
 export function cameraApi(http: Http) {
   return {
+    uploadVideo: (file: File) =>
+      http.upload<{ id: string; name: string }>("/api/media/videos", file),
+    uploadModel: (file: File) =>
+      http.upload<{ id: string; name: string }>("/api/media/models", file),
+    aiStatus: () => http.get<AiRuntimeStatus[]>("/api/ai/status"),
     list: (params?: CameraFilter) => http.page<Camera>("/api/cameras", params),
     online: (params?: PageParams) =>
       http.page<Camera>("/api/cameras/online", params),

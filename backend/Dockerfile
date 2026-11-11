@@ -7,6 +7,7 @@ RUN mvn -B -DskipTests package
 FROM eclipse-temurin:25-jre
 WORKDIR /app
 RUN groupadd --system poolsafety && useradd --system --gid poolsafety poolsafety
+RUN mkdir -p /app/media && chown poolsafety:poolsafety /app/media
 COPY --from=build /app/target/pool-safety-1.0.0.jar app.jar
 USER poolsafety
 EXPOSE 8080

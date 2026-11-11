@@ -2,6 +2,15 @@ export type Role = "ADMIN" | "STAFF";
 export type IncidentStatus =
   "NEW" | "ACKNOWLEDGED" | "IN_PROGRESS" | "RESOLVED" | "FALSE_ALARM";
 export type CameraStatus = "ONLINE" | "OFFLINE" | "DISABLED";
+export type AiModel = "NONE" | "YOLO26N" | "ULTRALYTICS" | "REFERENCE";
+export interface AiRuntimeStatus {
+  cameraId: string;
+  state: "LOADING" | "RUNNING" | "ERROR" | "STOPPED" | "FINISHED";
+  message: string;
+  frames: number;
+  detections: number;
+  updatedAt: string;
+}
 export interface User {
   id: string;
   username: string;
@@ -18,6 +27,10 @@ export interface Camera {
   locationDescription: string | null;
   streamUrl: string | null;
   streamUrlMasked: string | null;
+  sourceType?: "STREAM" | "LOCAL_VIDEO";
+  aiModel?: AiModel;
+  modelAsset?: string | null;
+  aiConfidence?: number;
   status: CameraStatus;
   monitoringEnabled: boolean;
   createdAt: string;
